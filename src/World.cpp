@@ -1,3 +1,4 @@
+#include "SFML/Graphics.hpp"
 #include "World.h"
 
 World::World(size_t width, size_t height, size_t cellSize) : width(width / cellSize), height(height / cellSize), cellSize(cellSize){
@@ -10,9 +11,11 @@ World::World(size_t width, size_t height, size_t cellSize) : width(width / cellS
     }
 }
 
-Cell& World::getCell(size_t x, size_t y)
+Cell* World::getCell(size_t x, size_t y)
 {
-    return cells.at(x + y * width);
+    if (!InBounds(x, y))
+        return nullptr;
+    return &getCellById(x + y * width);
 }
 
 Cell& World::getCellById(size_t id)
@@ -20,10 +23,136 @@ Cell& World::getCellById(size_t id)
     return cells.at(id);
 }
 
-void World::DrawWorld(sf::RenderWindow& window)
+bool World::IsOccupied(size_t x, size_t y)
+{
+    Cell* cell = getCell(x, y);
+    return (cell != nullptr) ? cell->getType() != CellType::Empty : 1;
+}
+
+bool World::MoveCell(Cell& cellToMove, size_t x2, size_t y2)
+{
+    if (!InBounds(x2, y2) || IsOccupied(x2, y2))
+        return 0;
+
+    Cell* cellAtPos = getCell(x2, y2);
+
+    cellAtPos->setType(cellToMove.getType());
+    cellAtPos->setVelocity(cellToMove.getVelocity());
+    cellAtPos->setAcceleration(cellToMove.getAcceleration());
+
+    cellAtPos->setRealX(cellToMove.getRealX());
+    cellAtPos->setRealY(cellToMove.getRealY());
+
+    cellAtPos->setUpdated(true);
+
+    cellToMove.setType(CellType::Empty);
+    sf::Vector2f zero(0, 0);
+    cellToMove.setVelocity(zero);
+    cellToMove.setAcceleration(zero);
+
+    cellToMove.setRealX(cellToMove.getRealX());
+    cellToMove.setRealY(cellToMove.getRealY());
+
+    return true;
+}
+
+void World::ApplyInitialVelocity(Cell* cell, sf::Vector2f vel)
+{
+    cell->setVelocity(cell->getVelocity() + vel);
+}
+
+void World::ApplyGlobalForces(float G)
+{
+    std::vector<Cell*> activeRocks;
+    activeRocks.reserve(cells.size() / 10);
+
+    for (auto& cell : cells)
+    {
+        if (cell.getType() == CellType::Rock)
+        {
+            activeRocks.push_back(&cell);
+        }
+    }
+
+    for (size_t i = 0; i < activeRocks.size(); ++i)
+    {
+        Cell* cellA = activeRocks[i];
+
+        for (size_t j = i + 1; j < activeRocks.size(); ++j)
+        {
+            Cell* cellB = activeRocks[j];
+
+            float dx = cellA->getRealX() - cellB->getRealX();
+            float dy = cellA->getRealY() - cellB->getRealY();
+
+            float r2 = static_cast<float>(dx * dx + dy * dy);
+    
+            if (r2 < 0.1f)
+                continue;
+
+            float r = std::sqrt(r2);
+
+            float softening = 10.0f;
+            float forceMag = G * (cellA->getMass() * cellB->getMass()) / (r2 + softening);
+
+            float fx = forceMag * (dx / r);
+            float fy = forceMag * (dy / r);
+
+            cellA->ApplyGravity(-fx, -fy);
+
+            cellB->ApplyGravity(fx, fy);
+        }
+    }
+}
+
+void World::Update(float deltaTime)
 {
     for (auto& cell : cells)
     {
-        cell.Draw(window, cellSize);
+        cell.setUpdated(false);
     }
+
+    for (auto& cell : cells)
+    {
+        if (cell.getType() == CellType::Empty || cell.isUpdated())
+            continue;
+
+        cell.UpdatePhysics(deltaTime, *this);
+    }
+}
+
+void World::DrawWorld(sf::RenderWindow& window)
+{
+    sf::VertexArray vertices(sf::PrimitiveType::Triangles);
+
+    vertices.resize(cells.size() * 6);
+    vertices.clear();
+
+    for (auto& cell : cells)
+    {
+        if (cell.getType() == CellType::Empty)
+            continue;
+
+        float px = cell.getX() * cellSize;
+        float py = cell.getY() * cellSize;
+        float size = static_cast<float>(cellSize);
+
+        sf::Color color = sf::Color::White;
+        if (cell.getType() == CellType::Rock) color = sf::Color::Blue;
+
+        sf::Vector2f topLeft(px, py);
+        sf::Vector2f topRight(px + size, py);
+        sf::Vector2f bottomRight(px + size, py + size);
+        sf::Vector2f bottomLeft(px, py + size);
+
+        vertices.append(sf::Vertex{ topLeft, color });
+        vertices.append(sf::Vertex{ topRight, color });
+        vertices.append(sf::Vertex{ bottomLeft, color });
+
+        vertices.append(sf::Vertex{ topRight, color });
+        vertices.append(sf::Vertex{ bottomRight, color });
+        vertices.append(sf::Vertex{ bottomLeft, color });
+    }
+
+    window.draw(vertices);
 }
