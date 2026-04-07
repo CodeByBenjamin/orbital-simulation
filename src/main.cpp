@@ -2,8 +2,13 @@
 #include <cstdlib>
 #include <ctime>
 #include <cmath>
+#include <iostream>
+
 #include "World.h"
 #include "Cell.h"
+
+void drawCells(World& world, sf::Vector2i mousePos, int mouseRadius, const size_t cellSize);
+void addVelocity(World& world, sf::Vector2i clickStartPos, sf::Vector2i clickEndPos, int mouseRadius, const size_t cellSize);
 
 int main()
 {
@@ -14,7 +19,7 @@ int main()
 
     static const unsigned int width = 768u;
     static const unsigned int height = 432u;
-    const size_t cellSize = 6;
+    static const size_t cellSize = 6;
 
     sf::Clock clock;
     static const float G = 30;
@@ -34,7 +39,7 @@ int main()
     simMode mode = Drawing;
 
     sf::Vector2i mousePos;
-    unsigned short mouseRadius = 3;
+    int mouseRadius = 3;
 
     sf::Vector2i clickStartPos;
 
@@ -42,8 +47,7 @@ int main()
     mousePreview.setFillColor(sf::Color(255, 100, 100, 100));
     mousePreview.setOrigin(sf::Vector2f(cellSize / 2.0f, cellSize / 2.0f));
 
-    bool isDrawing = false;
-    bool addingVelocity = false;
+    bool modeActive = false;
 
     while (window.isOpen())
     {
@@ -86,14 +90,7 @@ int main()
                 {
                     clickStartPos = { mouse_press->position.x, mouse_press->position.y };
 
-                    if (mode == Drawing)
-                    {
-                        isDrawing = true;
-                    }
-                    else if (mode == Velocity)
-                    {
-                        addingVelocity = true;
-                    }
+                    modeActive = true;
                 }
             }
 
@@ -103,55 +100,34 @@ int main()
                 {
                     sf::Vector2i clickEndPos = { mouse_release->position.x, mouse_release->position.y };
 
-                    if (mode == Drawing)
+                    modeActive = false;
+
+                    switch (mode)
                     {
-                        isDrawing = false;
-                    }
-                    else if (mode == Velocity)
-                    {
-                        addingVelocity = false;
+                    case Drawing:
+                        break;
 
-                        sf::Vector2f throwVector(
-                            static_cast<float>(clickStartPos.x - clickEndPos.x),
-                            static_cast<float>(clickStartPos.y - clickEndPos.y)
-                        );
+                    case Velocity:
+                        addVelocity(world, clickStartPos, clickEndPos, mouseRadius, cellSize);
+                        break;
 
-                        sf::Vector2f initialVelocity = throwVector / 8.0f;
-
-                        int gridMouseX = clickStartPos.x / cellSize;
-                        int gridMouseY = clickStartPos.y / cellSize;
-
-                        for (int dy = -mouseRadius; dy <= mouseRadius; dy++)
-                        {
-                            for (int dx = -mouseRadius; dx <= mouseRadius; dx++)
-                            {
-                                int cellX = gridMouseX + dx;
-                                int cellY = gridMouseY + dy;
-
-                                if (world.InBounds(cellX, cellY))
-                                {
-                                    Cell* cell = world.getCell(cellX, cellY);
-                                    if (cell->getType() != CellType::Empty) {
-                                        world.ApplyInitialVelocity(cell, initialVelocity);
-                                    }
-                                }
-                            }
-                        }
+                    default:
+                        break;
                     }
                 }
             }
 
             if (const auto* key = event->getIf<sf::Event::KeyPressed>())
             {
+                modeActive = false;
+
                 switch (key->scancode)
                 {
-                    case sf::Keyboard::Scancode::Num1:
-                    isDrawing = false;
+                case sf::Keyboard::Scancode::Num1:
                     mode = Drawing;
                     break;
 
                 case sf::Keyboard::Scancode::Num2:
-                    isDrawing = false;
                     mode = Velocity;
                     break;
 
@@ -161,38 +137,17 @@ int main()
             }
         }
 
-        if (isDrawing)
-        {
-            int gridMouseX = mousePos.x / cellSize;
-            int gridMouseY = mousePos.y / cellSize;
-
-            for (int dy = -mouseRadius; dy <= mouseRadius; dy++)
-            {
-                for (int dx = -mouseRadius; dx <= mouseRadius; dx++)
-                {
-                    int cellX = gridMouseX + dx;
-                    int cellY = gridMouseY + dy;
-
-                    if (world.InBounds(cellX, cellY))
-                    {
-                        Cell* cell = world.getCell(cellX, cellY);
-                        if (cell->getType() == CellType::Empty) {
-                            cell->setType(CellType::Rock);
-                        }
-                    }
-                }
+        if (modeActive) {
+            if (mode == Drawing) {
+                drawCells(world, mousePos, mouseRadius, cellSize);
             }
         }
-        else
-        {
-            if (!addingVelocity)
-            {
-                world.ApplyGlobalForces(G);
-                world.Update(dt);
-            }
+        else {
+            world.applyGlobalForces(G);
+            world.update(dt);
         }
 
-        float sideLength = (mouseRadius * 2 + 1) * cellSize;
+        float sideLength = (mouseRadius * 2.0f + 1.0f) * cellSize;
 
         mousePreview.setSize(sf::Vector2f(sideLength, sideLength));
 
@@ -201,8 +156,61 @@ int main()
 
         window.clear(sf::Color::Black);
 
-        world.DrawWorld(window);
+        world.drawWorld(window);
         window.draw(mousePreview);
         window.display();
+    }
+}
+
+void drawCells(World& world, sf::Vector2i mousePos, int mouseRadius, const size_t cellSize) {
+    int gridMouseX = mousePos.x / cellSize;
+    int gridMouseY = mousePos.y / cellSize;
+
+    for (int dy = -mouseRadius; dy <= mouseRadius; dy++) {
+        for (int dx = -mouseRadius; dx <= mouseRadius; dx++) {
+            int cellX = gridMouseX + dx;
+            int cellY = gridMouseY + dy;
+
+            if (world.inBounds(cellX, cellY)) {
+                Cell* cell = world.getCell(cellX, cellY);
+                if (cell->getType() == CellType::Empty) {
+                    cell->setType(CellType::Rock);
+
+                    cell->setVelocity({ 0.f, 0.f });
+                    cell->setAcceleration({ 0.f, 0.f });
+                    cell->setRealX(static_cast<float>(cellX));
+                    cell->setRealY(static_cast<float>(cellY));
+                }
+            }
+        }
+    }
+}
+
+void addVelocity(World& world, sf::Vector2i clickStartPos, sf::Vector2i clickEndPos, int mouseRadius, const size_t cellSize) {
+    sf::Vector2f throwVector(
+        static_cast<float>(clickStartPos.x - clickEndPos.x),
+        static_cast<float>(clickStartPos.y - clickEndPos.y)
+    );
+
+    sf::Vector2f initialVelocity = throwVector / 8.0f;
+
+    int gridMouseX = clickStartPos.x / cellSize;
+    int gridMouseY = clickStartPos.y / cellSize;
+
+    for (int dy = -mouseRadius; dy <= mouseRadius; dy++)
+    {
+        for (int dx = -mouseRadius; dx <= mouseRadius; dx++)
+        {
+            int cellX = gridMouseX + dx;
+            int cellY = gridMouseY + dy;
+
+            if (world.inBounds(cellX, cellY))
+            {
+                Cell* cell = world.getCell(cellX, cellY);
+                if (cell->getType() != CellType::Empty) {
+                    world.applyInitialVelocity(cell, initialVelocity);
+                }
+            }
+        }
     }
 }

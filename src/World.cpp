@@ -1,38 +1,38 @@
 #include "SFML/Graphics.hpp"
 #include "World.h"
 
-World::World(size_t width, size_t height, size_t cellSize) : width(width / cellSize), height(height / cellSize), cellSize(cellSize){
-    cells.reserve(width * height / (cellSize * cellSize));
+World::World(int width, int height, size_t cellSize)
+    : width(width / cellSize), height(height / cellSize), cellSize(cellSize) {
 
-    for (size_t y = 0; y < height / cellSize; ++y) {
-        for (size_t x = 0; x < width / cellSize; ++x) {
+    cells.reserve(this->width * this->height);
+
+    for (int y = 0; y < this->height; ++y) {
+        for (int x = 0; x < this->width; ++x) {
             cells.emplace_back(x, y, CellType::Empty);
         }
     }
 }
 
-Cell* World::getCell(size_t x, size_t y)
-{
-    if (!InBounds(x, y))
+Cell* World::getCell(int x, int y) {
+    if (!inBounds(x, y)) {
         return nullptr;
+    }
     return &getCellById(x + y * width);
 }
 
-Cell& World::getCellById(size_t id)
-{
+Cell& World::getCellById(size_t id) {
     return cells.at(id);
 }
 
-bool World::IsOccupied(size_t x, size_t y)
-{
+bool World::isOccupied(int x, int y) {
     Cell* cell = getCell(x, y);
-    return (cell != nullptr) ? cell->getType() != CellType::Empty : 1;
+    return (cell != nullptr) ? cell->getType() != CellType::Empty : true;
 }
 
-bool World::MoveCell(Cell& cellToMove, size_t x2, size_t y2)
-{
-    if (!InBounds(x2, y2) || IsOccupied(x2, y2))
-        return 0;
+bool World::moveCell(Cell& cellToMove, int x2, int y2) {
+    if (!inBounds(x2, y2) || isOccupied(x2, y2)) {
+        return false;
+    }
 
     Cell* cellAtPos = getCell(x2, y2);
 
@@ -40,8 +40,8 @@ bool World::MoveCell(Cell& cellToMove, size_t x2, size_t y2)
     cellAtPos->setVelocity(cellToMove.getVelocity());
     cellAtPos->setAcceleration(cellToMove.getAcceleration());
 
-    cellAtPos->setRealX(cellToMove.getRealX());
-    cellAtPos->setRealY(cellToMove.getRealY());
+    cellAtPos->setRealX(static_cast<float>(cellToMove.getX()));
+    cellAtPos->setRealY(static_cast<float>(cellToMove.getY()));
 
     cellAtPos->setUpdated(true);
 
@@ -56,30 +56,24 @@ bool World::MoveCell(Cell& cellToMove, size_t x2, size_t y2)
     return true;
 }
 
-void World::ApplyInitialVelocity(Cell* cell, sf::Vector2f vel)
-{
+void World::applyInitialVelocity(Cell* cell, sf::Vector2f vel) {
     cell->setVelocity(cell->getVelocity() + vel);
 }
 
-void World::ApplyGlobalForces(float G)
-{
+void World::applyGlobalForces(float G) {
     std::vector<Cell*> activeRocks;
     activeRocks.reserve(cells.size() / 10);
 
-    for (auto& cell : cells)
-    {
-        if (cell.getType() == CellType::Rock)
-        {
+    for (auto& cell : cells) {
+        if (cell.getType() == CellType::Rock) {
             activeRocks.push_back(&cell);
         }
     }
 
-    for (size_t i = 0; i < activeRocks.size(); ++i)
-    {
+    for (size_t i = 0; i < activeRocks.size(); ++i) {
         Cell* cellA = activeRocks[i];
 
-        for (size_t j = i + 1; j < activeRocks.size(); ++j)
-        {
+        for (size_t j = i + 1; j < activeRocks.size(); ++j) {
             Cell* cellB = activeRocks[j];
 
             float dx = cellA->getRealX() - cellB->getRealX();
@@ -87,8 +81,9 @@ void World::ApplyGlobalForces(float G)
 
             float r2 = static_cast<float>(dx * dx + dy * dy);
     
-            if (r2 < 0.1f)
+            if (r2 < 0.1f) {
                 continue;
+            }
 
             float r = std::sqrt(r2);
 
@@ -98,47 +93,44 @@ void World::ApplyGlobalForces(float G)
             float fx = forceMag * (dx / r);
             float fy = forceMag * (dy / r);
 
-            cellA->ApplyGravity(-fx, -fy);
+            cellA->applyGravity(-fx, -fy);
 
-            cellB->ApplyGravity(fx, fy);
+            cellB->applyGravity(fx, fy);
         }
     }
 }
 
-void World::Update(float deltaTime)
-{
-    for (auto& cell : cells)
-    {
+void World::update(float deltaTime) {
+    for (auto& cell : cells) {
         cell.setUpdated(false);
     }
 
-    for (auto& cell : cells)
-    {
-        if (cell.getType() == CellType::Empty || cell.isUpdated())
+    for (auto& cell : cells) {
+        if (cell.getType() == CellType::Empty || cell.isUpdated()) {
             continue;
+        }
 
-        cell.UpdatePhysics(deltaTime, *this);
+        cell.updatePhysics(deltaTime, *this);
     }
 }
 
-void World::DrawWorld(sf::RenderWindow& window)
-{
+void World::drawWorld(sf::RenderWindow& window) {
     sf::VertexArray vertices(sf::PrimitiveType::Triangles);
 
-    vertices.resize(cells.size() * 6);
-    vertices.clear();
-
-    for (auto& cell : cells)
-    {
-        if (cell.getType() == CellType::Empty)
+    for (auto& cell : cells) {
+        if (cell.getType() == CellType::Empty) {
             continue;
+        }
 
         float px = cell.getX() * cellSize;
         float py = cell.getY() * cellSize;
         float size = static_cast<float>(cellSize);
 
-        sf::Color color = sf::Color::White;
-        if (cell.getType() == CellType::Rock) color = sf::Color::Blue;
+        float speed = std::sqrt(cell.getVelocity().x * cell.getVelocity().x +
+            cell.getVelocity().y * cell.getVelocity().y);
+
+        uint8_t intensity = static_cast<uint8_t>(std::min(speed * 10.0f + 100.0f, 255.0f));
+        sf::Color color(intensity, 0, 255 - intensity);
 
         sf::Vector2f topLeft(px, py);
         sf::Vector2f topRight(px + size, py);

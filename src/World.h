@@ -4,23 +4,23 @@
 
 class World {
 private:
-	size_t width;
-	size_t height;
+	int width;
+	int height;
 	size_t cellSize;
 	std::vector<Cell> cells;
 public:
-	World(size_t width, size_t height, size_t cellSize);
+	World(int width, int height, size_t cellSize);
 	
-	Cell* getCell(size_t x, size_t y);
+	Cell* getCell(int x, int y);
 	Cell& getCellById(size_t Id);
 
-	bool InBounds(size_t x, size_t y) const { return x >= 0 && y >= 0 && x < width && y < height; };
-	bool IsOccupied(size_t x, size_t y);
-	bool MoveCell(Cell& cellToMove, size_t x2, size_t y2);
+	bool inBounds(int x, int y) const { return x >= 0 && y >= 0 && x < width && y < height; };
+	bool isOccupied(int x, int y);
+	bool moveCell(Cell& cellToMove, int x2, int y2);
 
-	void ApplyInitialVelocity(Cell* cell, sf::Vector2f vel);
-	void ApplyGlobalForces(float G);
-	void Update(float deltaTime);
+	void applyInitialVelocity(Cell* cell, sf::Vector2f vel);
+	void applyGlobalForces(float G);
+	void update(float deltaTime);
 
-	void DrawWorld(sf::RenderWindow& window);
+	void drawWorld(sf::RenderWindow& window);
 };
