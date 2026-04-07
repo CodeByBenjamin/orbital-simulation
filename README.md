@@ -7,7 +7,7 @@ A C++ and SFML physics engine that simulates N-body gravity within a discrete gr
 ## Features
 
 **Physics Engine:**
-- **N-Body Gravity:** Real-time gravitational attraction between all particles ($O(N^2)$).
+- **N-Body Gravity:** Real-time gravitational attraction between all particles.
 - **Grid-Based Movement:** Floating-point physics translated to a grid via Bresenham's algorithm.
 - **Collision Logic:** Occupancy checks with a "jiggle" mechanic for organic stacking.
 
@@ -38,3 +38,4 @@ mkdir build
 cd build
 cmake ..
 cmake --build .
+```
