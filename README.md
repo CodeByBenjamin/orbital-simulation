@@ -1,26 +1,40 @@
 # Orbital Simulation (WIP)
 
-A C++ and SFML physics engine that simulates N-body gravity within a discrete grid environment. This project bridges the gap between continuous orbital mechanics and cellular automata.
+A C++ and SFML physics engine that simulates N-body gravity within a discrete grid environment, bridging the gap between continuous orbital mechanics and cellular automata.
 
-### Features
-* **N-Body Gravity:** Real-time gravitational attraction between all particles ($O(N^2)$).
-* **Grid-Based Physics:** Floating-point velocity and acceleration translated to a grid via Bresenham's algorithm.
-* **Interaction Modes:**
-    * **Drawing:** Place "Rock" particles directly onto the grid.
-    * **Velocity (Slingshot):** Click and drag to launch particles with specific velocity vectors.
-* **Collision Logic:** Basic occupancy checks with a "jiggle" mechanic to simulate organic stacking.
-* **Velocity Visualization:** Dynamic color shifting based on particle speed.
+---
 
-### Controls
-* **1 / 2:** Toggle between Drawing and Velocity modes.
-* **Left Click:** Place particles or drag to set velocity.
-* **Mouse Wheel:** Adjust brush size.
+## Features
 
-### Technical Stack
-* **Language:** C++
-* **Graphics:** SFML
+**Physics Engine:**
+- **N-Body Gravity:** Real-time gravitational attraction between all particles ($O(N^2)$).
+- **Grid-Based Movement:** Floating-point physics translated to a grid via Bresenham's algorithm.
+- **Collision Logic:** Occupancy checks with a "jiggle" mechanic for organic stacking.
 
-### Planned Updates
-* **Optimization:** Quadtree spatial partitioning to improve performance.
-* **Stability:** Double-buffering the grid state for deterministic updates.
-* **Architecture:** Standardizing coordinate types and improving collision response.
+**Interaction:**
+- **Drawing Mode:** Manual placement of "Rock" particles.
+- **Velocity Mode:** Slingshot mechanic to launch particles with custom vectors.
+- **Visuals:** Speed-based dynamic color shifting.
+
+---
+
+## Controls
+- **1 / 2:** Toggle Drawing vs. Velocity modes.
+- **Left Click:** Place particles or drag to set velocity.
+- **Mouse Wheel:** Adjust brush size.
+
+---
+
+## Tech Stack
+- **Language:** C++20
+- **Graphics:** SFML
+- **Build System:** CMake
+
+---
+
+## How to Run
+```bash
+mkdir build
+cd build
+cmake ..
+cmake --build .
